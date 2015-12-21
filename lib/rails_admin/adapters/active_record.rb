@@ -99,7 +99,13 @@ module RailsAdmin
             else
               value = field.parse_value(value)
             end
-            statement, value1, value2 = StatementBuilder.new(column_infos[:column], column_infos[:type], value, operator).to_statement
+            column =
+              if @scope.model.try(:translated?, field.name)
+                @scope.model.translated_column_name(field.name)
+              else
+                column_infos[:column]
+              end
+            statement, value1, value2 = StatementBuilder.new(column, column_infos[:type], value, operator).to_statement
             @statements << statement if statement.present?
             @values << value1 unless value1.nil?
             @values << value2 unless value2.nil?
@@ -110,6 +116,7 @@ module RailsAdmin
 
         def build
           scope = @scope.where(@statements.join(' OR '), *@values)
+          scope = scope.with_translations(::I18n.locale) if @scope.model.try(:translates?)
           scope = scope.references(*(@tables.uniq)) if @tables.any?
           scope
         end
